@@ -14,31 +14,31 @@ import android.graphics.drawable.Drawable;
 import android.util.DisplayMetrics;
 
 /**
- * ÁÙÊ±µÄ¹¤¾ßÀà¡£
+ * ä¸´æ—¶çš„å·¥å…·ç±»ã€‚
  * 
  * @author wfeng007
- * @date 2013-11-10 ÏÂÎç8:32:34
+ * @date 2013-11-10 ä¸‹åˆ8:32:34
  */
 public class ScreenUtil {
 
 	// private int screenWidth =
 	// ContentList.this.getWindowManager().getDefaultDisplay().getWidth();
-	// // ÆÁÄ»¿í£¨ÏñËØ£¬Èç£º480px£©
+	// // å±å¹•å®½ï¼ˆåƒç´ ï¼Œå¦‚ï¼š480pxï¼‰
 	// private int screenHeight =
 	// ContentList.this.getWindowManager().getDefaultDisplay().getHeight();
-	// // ÆÁÄ»¸ß£¨ÏñËØ£¬Èç£º800p£©
+	// // å±å¹•é«˜ï¼ˆåƒç´ ï¼Œå¦‚ï¼š800pï¼‰
 
 	DisplayMetrics dm;
 	//
-	public float density; // ÆÁÄ»ÃÜ¶È£¨ÏñËØ±ÈÀı£º0.75/1.0/1.5/2.0£©
-	public int densityDPI; // ÆÁÄ»ÃÜ¶È£¨Ã¿´çÏñËØ£º120/160/240/320£©
+	public float density; // å±å¹•å¯†åº¦ï¼ˆåƒç´ æ¯”ä¾‹ï¼š0.75/1.0/1.5/2.0ï¼‰
+	public int densityDPI; // å±å¹•å¯†åº¦ï¼ˆæ¯å¯¸åƒç´ ï¼š120/160/240/320ï¼‰
 	public float xdpi;
 	public float ydpi;
 
-	public int screenWidthPx; // ÆÁÄ»¿í£¨ÏñËØ£¬Èç£º480px£©
-	public int screenHeightPx; // ÆÁÄ»¸ß£¨ÏñËØ£¬Èç£º800px£©
-//	public int screenWidth = (int) (dm.widthPixels * density + 0.5f); // ÆÁÄ»¿í£¨px£¬Èç£º480px£©
-//	public int screenHeight = (int) (dm.heightPixels * density + 0.5f); // ÆÁÄ»¸ß£¨px£¬Èç£º800px£©
+	public int screenWidthPx; // å±å¹•å®½ï¼ˆåƒç´ ï¼Œå¦‚ï¼š480pxï¼‰
+	public int screenHeightPx; // å±å¹•é«˜ï¼ˆåƒç´ ï¼Œå¦‚ï¼š800pxï¼‰
+//	public int screenWidth = (int) (dm.widthPixels * density + 0.5f); // å±å¹•å®½ï¼ˆpxï¼Œå¦‚ï¼š480pxï¼‰
+//	public int screenHeight = (int) (dm.heightPixels * density + 0.5f); // å±å¹•é«˜ï¼ˆpxï¼Œå¦‚ï¼š800pxï¼‰
 	
 	
 	public int screenWidthDip ;
@@ -48,21 +48,21 @@ public class ScreenUtil {
 		
 		dm = context.getResources().getDisplayMetrics();
 		
-		density = dm.density; // ÆÁÄ»ÃÜ¶È pxÓëdip±È£¨ÏñËØ±ÈÀı£º0.75/1.0/1.5/2.0£©
-		densityDPI = dm.densityDpi; // ÆÁÄ»ÃÜ¶È£¨Ã¿´çÏñËØ£º120/160/240/320£©
+		density = dm.density; // å±å¹•å¯†åº¦ pxä¸dipæ¯”ï¼ˆåƒç´ æ¯”ä¾‹ï¼š0.75/1.0/1.5/2.0ï¼‰
+		densityDPI = dm.densityDpi; // å±å¹•å¯†åº¦ï¼ˆæ¯å¯¸åƒç´ ï¼š120/160/240/320ï¼‰
 		
-		//Ã¿inchµÄdip ÖáÏò
+		//æ¯inchçš„dip è½´å‘
 		xdpi = dm.xdpi; // 
 		ydpi = dm.ydpi; //
 		
-		screenWidthPx = dm.widthPixels; // ÆÁÄ»¿í£¨ÏñËØ£¬Èç£º480px£© dip?ÆäÊµÊÇdip
-		screenHeightPx = dm.heightPixels; // ÆÁÄ»¸ß£¨ÏñËØ£¬Èç£º800px£©dip?
+		screenWidthPx = dm.widthPixels; // å±å¹•å®½ï¼ˆåƒç´ ï¼Œå¦‚ï¼š480pxï¼‰ dip?å…¶å®æ˜¯dip
+		screenHeightPx = dm.heightPixels; // å±å¹•é«˜ï¼ˆåƒç´ ï¼Œå¦‚ï¼š800pxï¼‰dip?
 		
 		screenWidthDip=(int)(screenWidthPx/density + 0.5f*(screenWidthPx>=0?1:-1));
 		screenHeightDip=(int)(screenHeightPx/density + 0.5f*(screenHeightPx>=0?1:-1)); 
 		
-//		screenWidth = (int) (dm.widthPixels * density + 0.5f); // ÆÁÄ»¿í£¨px£¬Èç£º480px£©
-//		screenHeight = (int) (dm.heightPixels * density + 0.5f); // ÆÁÄ»¸ß£¨px£¬Èç£º800px£©
+//		screenWidth = (int) (dm.widthPixels * density + 0.5f); // å±å¹•å®½ï¼ˆpxï¼Œå¦‚ï¼š480pxï¼‰
+//		screenHeight = (int) (dm.heightPixels * density + 0.5f); // å±å¹•é«˜ï¼ˆpxï¼Œå¦‚ï¼š800pxï¼‰
 		
 		System.out.println("screen screenWidthDip:"+screenWidthDip+" screenHeightDip:"+screenHeightDip);
 		System.out.println("screen xdpi:"+xdpi+" ydpi:"+ydpi);
@@ -81,30 +81,30 @@ public class ScreenUtil {
 		return dstbmp;
 	}
 
-	public Bitmap drawableToBitmap(Drawable drawable) // drawable ×ª»»³Ébitmap
+	public Bitmap drawableToBitmap(Drawable drawable) // drawable è½¬æ¢æˆbitmap
 	{
-		int width = drawable.getIntrinsicWidth(); // È¡drawableµÄ³¤¿í
+		int width = drawable.getIntrinsicWidth(); // å–drawableçš„é•¿å®½
 		int height = drawable.getIntrinsicHeight();
 		Bitmap.Config config = drawable.getOpacity() != PixelFormat.OPAQUE ? Bitmap.Config.ARGB_8888
-				: Bitmap.Config.RGB_565; // È¡drawableµÄÑÕÉ«¸ñÊ½
-		Bitmap bitmap = Bitmap.createBitmap(width, height, config); // ½¨Á¢¶ÔÓ¦bitmap
-		Canvas canvas = new Canvas(bitmap); // ½¨Á¢¶ÔÓ¦bitmapµÄ»­²¼
+				: Bitmap.Config.RGB_565; // å–drawableçš„é¢œè‰²æ ¼å¼
+		Bitmap bitmap = Bitmap.createBitmap(width, height, config); // å»ºç«‹å¯¹åº”bitmap
+		Canvas canvas = new Canvas(bitmap); // å»ºç«‹å¯¹åº”bitmapçš„ç”»å¸ƒ
 		drawable.setBounds(0, 0, width, height);
-		drawable.draw(canvas); // °ÑdrawableÄÚÈİ»­µ½»­²¼ÖĞ
+		drawable.draw(canvas); // æŠŠdrawableå†…å®¹ç”»åˆ°ç”»å¸ƒä¸­
 		return bitmap;
 	}
 
 	public Drawable zoomDrawable(Drawable drawable, int dstW, int dstH) {
 		int width = drawable.getIntrinsicWidth();
 		int height = drawable.getIntrinsicHeight();
-		Bitmap oldbmp = drawableToBitmap(drawable); // drawable×ª»»³Ébitmap
-		Matrix matrix = new Matrix(); // ´´½¨²Ù×÷Í¼Æ¬ÓÃµÄMatrix¶ÔÏó
-		float scaleWidth = ((float) dstW / width); // ¼ÆËãËõ·Å±ÈÀı
+		Bitmap oldbmp = drawableToBitmap(drawable); // drawableè½¬æ¢æˆbitmap
+		Matrix matrix = new Matrix(); // åˆ›å»ºæ“ä½œå›¾ç‰‡ç”¨çš„Matrixå¯¹è±¡
+		float scaleWidth = ((float) dstW / width); // è®¡ç®—ç¼©æ”¾æ¯”ä¾‹
 		float scaleHeight = ((float) dstH / height);
-		matrix.postScale(scaleWidth, scaleHeight); // ÉèÖÃËõ·Å±ÈÀı
+		matrix.postScale(scaleWidth, scaleHeight); // è®¾ç½®ç¼©æ”¾æ¯”ä¾‹
 		Bitmap newbmp = Bitmap.createBitmap(oldbmp, 0, 0, width, height,
-				matrix, true); // ½¨Á¢ĞÂµÄbitmap£¬ÆäÄÚÈİÊÇ¶ÔÔ­bitmapµÄËõ·ÅºóµÄÍ¼
-		return new BitmapDrawable(newbmp); // °Ñbitmap×ª»»³Édrawable²¢·µ»Ø
+				matrix, true); // å»ºç«‹æ–°çš„bitmapï¼Œå…¶å†…å®¹æ˜¯å¯¹åŸbitmapçš„ç¼©æ”¾åçš„å›¾
+		return new BitmapDrawable(newbmp); // æŠŠbitmapè½¬æ¢æˆdrawableå¹¶è¿”å›
 	}
 
 	public int culcDstHight(int srcW, int srcH, int dstW) {

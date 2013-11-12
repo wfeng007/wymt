@@ -9,7 +9,7 @@ import android.view.Window;
 /**
  * slash
  * @author wfeng007
- * @date 2013-11-5 обнГ7:53:03
+ * @date 2013-11-5 7:53:03
  */
 public class MainActivity extends Activity {
 

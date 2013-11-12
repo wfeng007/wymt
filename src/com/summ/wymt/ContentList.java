@@ -1,46 +1,21 @@
 package com.summ.wymt;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.ref.SoftReference;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.summ.wymt.ContentList.AsyncImageLoader.ImageCallback;
-import com.summ.wymt.util.ScreenUtil;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Message;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -52,12 +27,21 @@ import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.summ.android.util.XListView;
+import com.summ.android.util.XListView.IXListViewListener;
+import com.summ.wymt.util.AsyncImageLoader;
+import com.summ.wymt.util.AsyncImageLoader.ImageCallback;
+import com.summ.wymt.util.HttpIoTask;
+import com.summ.wymt.util.HttpIoTask.HttpIoListener;
+import com.summ.wymt.util.ScreenUtil;
 
 /**
- * Í¼Æ¬µÈÄÚÈİÁĞ±í
+ * å›¾ç‰‡ç­‰å†…å®¹åˆ—è¡¨
  * 
  * @author wfeng007
- * @date 2013-11-5 ÏÂÎç8:12:30
+ * @date 2013-11-5 ä¸‹åˆ8:12:30
  */
 public class ContentList extends Activity {
 
@@ -65,7 +49,10 @@ public class ContentList extends Activity {
 	private static String TAG = ContentList.class.getName();
 
 	private static String baseUrlStr = "http://www.51youtu.com/51youtu";
-	private static String listUrlStr = baseUrlStr+"/item!listItem.act?pageNum=1";
+	private static String listUrlStr = baseUrlStr+"/item!listItem.act";
+	
+	private XListView xlistView;
+	private int pagenum = 1;
 
 	// ListView listView = null;
 	//
@@ -75,21 +62,21 @@ public class ContentList extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_content_list);
 
-		// ¶ÁÈ¡×îĞÂÄÚÈİ
-		List<Map<String, Object>> list = getListItems();
-		// Ê¹ÓÃÒì²½·½·¨»ñÈ¡ÁĞ±íĞÅÏ¢
-		final ListLoadTask loadTask = new ListLoadTask(); // Éú³Étask Õâ¸ötask
-															// ±¾Éí¼´ÊÇfutureÓÖÊÇexecutor´úÀí£¬Í¬Ê±ÊÇrunnable±¾Éí»¹·Ö×°×´Ì¬¡£
-		loadTask.execute(listUrlStr); // ¿ªÊ¼Ö´ĞĞ
+		// è¯»å–æœ€æ–°å†…å®¹
+//		List<Map<String, Object>> list = getListItems();
+		// ä½¿ç”¨å¼‚æ­¥æ–¹æ³•è·å–åˆ—è¡¨ä¿¡æ¯
+		final HttpIoTask loadTask = new HttpIoTask(new GetListData()); // ç”Ÿæˆtask è¿™ä¸ªtask
+															// æœ¬èº«å³æ˜¯futureåˆæ˜¯executorä»£ç†ï¼ŒåŒæ—¶æ˜¯runnableæœ¬èº«è¿˜åˆ†è£…çŠ¶æ€ã€‚
+		loadTask.execute(listUrlStr); // å¼€å§‹æ‰§è¡Œ
 
-		// loadTask.get();//»ñÈ¡·µ»ØÖµ»áblock
+		// loadTask.get();//è·å–è¿”å›å€¼ä¼šblock
 		//
 		ViewGroup gv = null;
-		// ÉèÖÃÄÚÈİµ½ÁĞ±í
-		// µÃµ½view
-		ListView listView = (ListView) this.findViewById(R.id.content_list);
+		// è®¾ç½®å†…å®¹åˆ°åˆ—è¡¨
+		// å¾—åˆ°view
+		xlistView = (XListView) this.findViewById(R.id.content_list);
 
-		// Ê¹ÓÃsimpleAdapter
+		// ä½¿ç”¨simpleAdapter
 		// SimpleAdapter sa =new
 		// SimpleAdapter(this,list,R.layout.activity_main_list_item,
 		// new String[]{"simpleName","entryActivityName"},
@@ -97,8 +84,8 @@ public class ContentList extends Activity {
 
 //		ListViewAdapter lva = new ListViewAdapter(this, list);
 
-		// ¹ÒÉÏÊÂ¼ş¼àÌıÆ÷(ÔªËØµ¥»÷ÊÂ¼ş) //½«¼àÌıÆ÷¹ÒÔØµ½itemÉÏ
-		listView.setOnItemClickListener(new OnItemClickListener() {
+		// æŒ‚ä¸Šäº‹ä»¶ç›‘å¬å™¨(å…ƒç´ å•å‡»äº‹ä»¶) //å°†ç›‘å¬å™¨æŒ‚è½½åˆ°itemä¸Š
+		xlistView.setOnItemClickListener(new OnItemClickListener() {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
@@ -108,19 +95,47 @@ public class ContentList extends Activity {
 
 		// render
 		// listView.setAdapter(lva); //
+		
+		xlistView.setXListViewListener(new IXListViewListener() {
+			
+			@Override
+			public void onRefresh() {
+				pagenum=1;
+				final HttpIoTask loadTask = new HttpIoTask(new GetListData()); // ç”Ÿæˆtask è¿™ä¸ªtask
+				loadTask.execute(listUrlStr); // å¼€å§‹æ‰§è¡Œ
+			}
+			
+			@Override
+			public void onLoadMore() {
+				pagenum++;
+				Log.i(TAG,"onLoadMore:"+pagenum);
+				final HttpIoTask<Object, String> loadTask = new HttpIoTask(new GetListData()); // ç”Ÿæˆtask è¿™ä¸ªtask
+				loadTask.execute(listUrlStr+"?pageNum="+pagenum); // å¼€å§‹æ‰§è¡Œ
+			}
+		});
+		xlistView.setPullLoadEnable(true);
 
 	}
-
-	private List<Map<String, Object>> getListItems() {
+	
+	/*
+	 * å½“æ•°æ®åˆ·æ–°å®Œæˆ  ç•Œé¢çŠ¶æ€å›å½’
+	 */
+	private void onLoad() {
+		xlistView.stopRefresh();
+		xlistView.stopLoadMore();
+		xlistView.setRefreshTime("åˆšåˆš");
+	}
+	
+/*	private List<Map<String, Object>> getListItems() {
 		List<Map<String, Object>> listItems = new ArrayList<Map<String, Object>>();
 
 		Map<String, Object> map = new HashMap<String, Object>();
 		// map.put("imageUri",
 		// Uri.parse("http://wyyoutu.b0.upaiyun.com/doudou00.jpg!thum1"));
-		// //Í¼Æ¬×ÊÔ´ ÎŞ·¨½âÎö³É¹¦
+		// //å›¾ç‰‡èµ„æº æ— æ³•è§£ææˆåŠŸ
 		// map.put("imageUri",
 		// Uri.parse("http://www.51youtu.com/51youtu/svc/image?itemId=74&tq=75"));
-		// //Í¼Æ¬×ÊÔ´ ÎŞ·¨½âÎö³É¹¦
+		// //å›¾ç‰‡èµ„æº æ— æ³•è§£ææˆåŠŸ
 
 		try {
 			// URL thumb_u = new
@@ -128,209 +143,121 @@ public class ContentList extends Activity {
 			URL thumb_u = new URL(
 					"http://wyyoutu.b0.upaiyun.com/doudou00.jpg!thum1");
 			Drawable thumb_d = Drawable.createFromStream(thumb_u.openStream(),
-					"src"); // ÕâÑùÊÇ·ñÓĞÄÚ´æĞ¹Â¶£¿
+					"src"); // è¿™æ ·æ˜¯å¦æœ‰å†…å­˜æ³„éœ²ï¼Ÿ
 			// myImageView.setImageDrawable(thumb_d);
 			map.put("imageDrawable", thumb_d);
 		} catch (Exception e) {
 			Log.w(TAG, e.getMessage(), e);
 		}
 
-		map.put("title", "¶¹¶¹´²"); // ±êÌâ
-		map.put("info", "ÕâÊÇÒ»ÕÅ¶¹¶¹´²µÄÍ¼Æ¬¡£"); // ĞÅÏ¢
-		// map.put("detail", goodsDetails[i]); //ÏêÇé°´Å¥
+		map.put("title", "è±†è±†åºŠ"); // æ ‡é¢˜
+		map.put("info", "è¿™æ˜¯ä¸€å¼ è±†è±†åºŠçš„å›¾ç‰‡ã€‚"); // ä¿¡æ¯
+		// map.put("detail", goodsDetails[i]); //è¯¦æƒ…æŒ‰é’®
 		listItems.add(map);
 		return listItems;
-	}
+	}*/
 
-	// //»ñÈ¡Êı¾İºóµÄ»Øµ÷£¿
+	// //è·å–æ•°æ®åçš„å›è°ƒï¼Ÿ
 	// protected void paserAndRender(String data){
 	//
 	// }
-
-	//
-	// Ôö¼ÓÒµÎñ´¦Àí
-	// Ô¶³ÌÍ¨Ñ¶µÄtask
-	public class ListLoadTask extends AsyncTask<Object, Object, String> {
-
-		private static final int REQUEST_TIMEOUT = 5 * 1000;// ÉèÖÃÇëÇó³¬Ê±10ÃëÖÓ
-		private static final int SO_TIMEOUT = 5 * 1000; // ÉèÖÃµÈ´ıÊı¾İ³¬Ê±Ê±¼ä10ÃëÖÓ
-
-		private HttpClient httpClient;
-
-		// private Activity activity=null;
-
-		public ListLoadTask() {
-			// ´´½¨DefaultHttpClient¶ÔÏó
-			// ³¬Ê±µÄhttpClient
-			BasicHttpParams httpParams = new BasicHttpParams();
-			HttpConnectionParams.setConnectionTimeout(httpParams,
-					REQUEST_TIMEOUT);
-			HttpConnectionParams.setSoTimeout(httpParams, SO_TIMEOUT);
-			//
-			httpClient = new DefaultHttpClient(httpParams);
-			// httpClient = new DefaultHttpClient();
-		}
-
+	
+	/**
+	 * 
+	 * @author wfeng007
+	 * @date 2013-11-12 ä¸‹åˆ10:50:33
+	 */
+	public class GetListData implements HttpIoListener<Object, List<Map<String, Object>>>{
+		private Toast t=Toast.makeText(ContentList.this, "ç½‘ç»œæ•°æ®è¯»å–å¤±è´¥ï¼è¯·ç¨åå†è¯•ï¼", Toast.LENGTH_SHORT);
 		/**
-		 * UIÖ´ĞĞ
+		 * è¯»å–æ•°æ®å‰å¯ä»¥é¢„è®¾ç½®ç•Œé¢
 		 */
 		@Override
-		protected void onPreExecute() {
+		public void onPreExecute() {
 			Log.i(TAG, "pre execute task!");
 		}
 
 		/**
-		 * ºóÌ¨Ïß³ÌÖ´ĞĞ£¨³Ø£©Ö´ĞĞ
+		 * åˆ°è¯»åˆ°æ•°æ®è§£ææ•°æ® 
+		 * è¯¥æ–¹æ³•åœ¨åå°çº¿ç¨‹ä¸­æ‰§è¡Œã€‚ã€‚ä¸èƒ½ç›´æ¥æ“ä½œç•Œé¢ã€‚
 		 */
 		@Override
-		protected String doInBackground(Object... params) {
-			String url = (String) params[0];
-			if (url == null) {
-				Log.w(TAG, "url must not be NULL");
-				return null;
-			}
-			// ¶ÁÈ¡Êı¾İ
-
-			HttpGet get = new HttpGet(
-			// "http://192.168.2.20:8080/foo/secret.jsp");
-			// "http://wyyoutu.b0.upaiyun.com/doudou00.jpg!exif");
-					url);
-
-			// ·¢ËÍGETÇëÇó
-			HttpResponse httpResponse = null;
+		public List<Map<String, Object>> onDataLoaded(String data) {
+			Log.v(TAG, "on data loaded. data:"+data);
+			if (data == null)return null;
+			JSONObject resultJson;
 			try {
-				httpResponse = httpClient.execute(get);
-			} catch (ClientProtocolException cpe) {
-				Log.w(TAG, cpe.getMessage(), cpe);
-				return null;
-			} catch (IOException ioe) {
-				Log.w(TAG, ioe.getMessage(), ioe);
-				return null;
-			}
-			// System.out.println("******************ÏìÓ¦×´Ì¬ĞÅÏ¢********************");
-			// System.out.println(httpResponse.getStatusLine());
-			// System.out.println("******************ÏìÓ¦Í·ĞÅÏ¢********************");
-			// Header[] headers= httpResponse.getAllHeaders();
-			// for (Header header : headers) {
-			// System.out.println(header.getName()+" : "+header.getValue());
-			// }
-			// System.out.println("******************ÄÚÈİ********************");
-			StatusLine sl = httpResponse.getStatusLine();
-			int status = sl.getStatusCode();
-			if (status < 200 || status >= 300) {
-				// ·ÃÎÊÊ§°Ü
-				Log.w(TAG, "Data get failed!!status:" + status);
-				// return null;
-			}
-			HttpEntity entity = httpResponse.getEntity();
-			//
-			if (entity != null) {
-				// ¶ÁÈ¡·şÎñÆ÷ÏìÓ¦ µÄÁ÷¡£
-				BufferedReader br = null;
-				try {
-					br = new BufferedReader(new InputStreamReader(
-							entity.getContent()));
-					StringBuilder sb = new StringBuilder();
-					String line = null;
-					// response.setText("");
-					while ((line = br.readLine()) != null) {
-						// Ê¹ÓÃresponseÎÄ±¾¿òÏÔÊ¾·şÎñÆ÷ÏìÓ¦
-						// response.append(line + "\n");
-						// System.out.println(line);
-						sb.append(line);
-					}
-					return sb.toString();
-				} catch (Exception e) {
-					Log.w(TAG, e.getMessage(), e);
-					return null;
-				} finally {
-					try {
-						if (br != null)
-							br.close();
-					} catch (IOException e) {
-						Log.e(TAG, "fetal!!", e);
-					}
-				}
-			} else {
-				Log.w(TAG, "Data get failed!!Response have no body");
-				return null;
-			}
-		}
-
-		// protected paserData(String data){
-		//
-		// }
-
-		/**
-		 * 
-		 * ½âÎöÊı¾İ²¢²¼¾Ö
-		 * 
-		 * UIÖ´ĞĞ ½âÎöÊı¾İ¼°ÉèÖÃ½çÃæ¡£
-		 */
-		@Override
-		protected void onPostExecute(String result) {
-			if (result == null)
-				return;
-
-			ListView listView = (ListView) ContentList.this
-					.findViewById(R.id.content_list);
-
-			try {
-
+				resultJson = new JSONObject(data);
 				List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
-				JSONObject resultJson = new JSONObject(result);
 				JSONArray rowsJson = resultJson.getJSONArray("rows");
 				for (int i = 0; i < rowsJson.length(); i++) {
 					JSONObject rowJson = rowsJson.getJSONObject(i);
-					Log.i(TAG, "row[" + i + "]:" + rowJson);
-
+					Log.v(TAG, "row[" + i + "]:" + rowJson);
 					Map<String, Object> item = new HashMap<String, Object>();
 					item.put("title", rowJson.getString("name"));
 					item.put("info", rowJson.getString("text"));
-					// item.put("imageDrawable",null);//FIXME Ó¦¸ÃÌá¹©Ò»¸öÏß³Ì×¨ÃÅÒì²½»ñÈ¡Í¼Æ¬¡£
-
+					// item.put("imageDrawable",null);//FIXME åº”è¯¥æä¾›ä¸€ä¸ªçº¿ç¨‹ä¸“é—¨å¼‚æ­¥è·å–å›¾ç‰‡ã€‚
 					String imgUrlStr = rowJson.getString("thumbnailUrl");
 					item.put("imageUrlStr", (imgUrlStr != null) ? baseUrlStr
 							+ "/" + imgUrlStr : null);
 					list.add(item);
 				}
-				ListViewAdapter lva = new ListViewAdapter(ContentList.this,
-						list);
-
-				// render
-				listView.setAdapter(lva); // renderÊı¾İµ½½çÃæ¡£
-
-				// Æô¶¯¸øÒ»¸ö¶ÀÁ¢Ïß³ÌÀ´loadÒ»×éÍ¼Æ¬¡£
-				HandlerThread handlerThread = new HandlerThread(
-						"handler_thread");
-				handlerThread.start(); // Æô¶¯×Ô¶¨Òå´¦ÀíÏß³Ì
-
+				return list;
 			} catch (JSONException e) {
-				Log.w(TAG, "Parser Data failed!!", e);
+				Log.w(TAG, e.getMessage(), e);
+				return null; //è§£æå¤±è´¥åˆ™ä¸åšä»»ä½•äº‹æƒ…ã€‚
 			}
-
+		}
+		
+		/**
+		 * è§£æå®Œæ•°æ®åå°†æ•°æ®å¸ƒç½®åˆ°ç•Œé¢
+		 */
+		@Override
+		public void onPostExecute(List<Map<String, Object>> list) {
+			Log.i(TAG, "get result:"+list);
+			if (list == null){
+				//TODO è¯»å–æ•°æ®å¤±è´¥çš„å…·ä½“ä¿¡æ¯å¯ä»¥ä¼ é€’è¿‡æ¥çš„ã€‚
+				t.show();
+				return;
+			}
+			ListView listView = (ListView) ContentList.this
+					.findViewById(R.id.content_list);
+			//è¿™é‡Œä¸åº”é‡æ–°ç”Ÿæˆå¯¹è±¡ã€‚
+			//é‡æ–°
+			ListViewAdapter lva = new ListViewAdapter(ContentList.this,list);
+			// render
+			listView.setAdapter(lva); // renderæ•°æ®åˆ°ç•Œé¢ã€‚
+			onLoad();// é¡¹ç›®ç›¸å…³ã€‚ã€‚
+			//
+			// å¯åŠ¨ç»™ä¸€ä¸ªç‹¬ç«‹çº¿ç¨‹æ¥loadä¸€ç»„å›¾ç‰‡ã€‚
+			HandlerThread handlerThread = new HandlerThread(
+					"handler_thread");
+			handlerThread.start(); // å¯åŠ¨è‡ªå®šä¹‰å¤„ç†çº¿ç¨‹
 		}
 
-		// private void renderView(){
-		//
-		// }
-
+		/* (non-Javadoc)
+		 * @see com.summ.wymt.util.HttpIoTask.HttpIoListener#onProgressUpdate(Progress[])
+		 */
+		@Override
+		public void onProgressUpdate(Object... values) {
+		}
 	}
+	
 
 	/**
-	 * content_list_text.xmlµÄÊÊÅäÆ÷ ÊÊÅäÆ÷
+	 * content_list_text.xmlçš„é€‚é…å™¨ é€‚é…å™¨
 	 * 
 	 * @author wfeng007
-	 * @date 2013-11-5 ÏÂÎç8:52:57
+	 * @date 2013-11-5 ä¸‹åˆ8:52:57
 	 */
 	public static class ListViewAdapter extends BaseAdapter {
 
-		private Context context; // ÔËĞĞÉÏÏÂÎÄ
-		private List<Map<String, Object>> listItems; // ·ÖÏîĞÅÏ¢¼¯ºÏ
-		private LayoutInflater listContainer; // ÊÓÍ¼ÈİÆ÷
-		// private boolean[] hasChecked; //¼ÇÂ¼Ñ¡ÖĞ×´Ì¬
+		private Context context; // è¿è¡Œä¸Šä¸‹æ–‡
+		private List<Map<String, Object>> listItems; // åˆ†é¡¹ä¿¡æ¯é›†åˆ
+		private LayoutInflater listContainer; // è§†å›¾å®¹å™¨
+		// private boolean[] hasChecked; //è®°å½•é€‰ä¸­çŠ¶æ€
 
-		public final class ListItemView { // ×Ô¶¨Òå¿Ø¼ş¼¯ºÏ Ö»ÔÚ±¾adapter²Ù×÷ÄÚ²¿Ê¹ÓÃ
+		public final class ListItemView { // è‡ªå®šä¹‰æ§ä»¶é›†åˆ åªåœ¨æœ¬adapteræ“ä½œå†…éƒ¨ä½¿ç”¨
 			public ImageView image;
 			public TextView title;
 			public TextView info;
@@ -342,7 +269,7 @@ public class ContentList extends Activity {
 		public ListViewAdapter(Context context,
 				List<Map<String, Object>> listItems) {
 			this.context = context;
-			listContainer = LayoutInflater.from(context); // ´´½¨ÊÓÍ¼ÈİÆ÷²¢ÉèÖÃÉÏÏÂÎÄ
+			listContainer = LayoutInflater.from(context); // åˆ›å»ºè§†å›¾å®¹å™¨å¹¶è®¾ç½®ä¸Šä¸‹æ–‡
 			this.listItems = listItems;
 			// hasChecked = new boolean[getCount()];
 			imageLoader = new AsyncImageLoader(this.context);
@@ -368,69 +295,69 @@ public class ContentList extends Activity {
 		}
 
 		/**
-		 * ¼ÇÂ¼¹´Ñ¡ÁËÄÄ¸öÏî
+		 * è®°å½•å‹¾é€‰äº†å“ªä¸ªé¡¹
 		 * 
 		 * @param checkedID
-		 *            Ñ¡ÖĞµÄĞòºÅ
+		 *            é€‰ä¸­çš„åºå·
 		 */
 		// private void checkedChange(int checkedID) {
 		// hasChecked[checkedID] = !hasChecked[checkedID];
 		// }
 
 		/**
-		 * ÅĞ¶Ï·ÖÏîÊÇ·ñÑ¡Ôñ
+		 * åˆ¤æ–­åˆ†é¡¹æ˜¯å¦é€‰æ‹©
 		 * 
 		 * @param checkedID
-		 *            ÎïÆ·ĞòºÅ
-		 * @return ·µ»ØÊÇ·ñÑ¡ÖĞ×´Ì¬
+		 *            ç‰©å“åºå·
+		 * @return è¿”å›æ˜¯å¦é€‰ä¸­çŠ¶æ€
 		 */
 		// public boolean hasChecked(int checkedID) {
 		// return hasChecked[checkedID];
 		// }
 
 		/**
-		 * ÏÔÊ¾ÄÚÈİÏêÇé
+		 * æ˜¾ç¤ºå†…å®¹è¯¦æƒ…
 		 * 
 		 * @param clickID
 		 */
 		private void showDetailInfo(int clickID) {
 			new AlertDialog.Builder(context)
-					.setTitle("ÎïÆ·ÏêÇé£º" + listItems.get(clickID).get("info"))
+					.setTitle("ç‰©å“è¯¦æƒ…ï¼š" + listItems.get(clickID).get("info"))
 					.setMessage(listItems.get(clickID).get("detail").toString())
-					.setPositiveButton("È·¶¨", null).show();
+					.setPositiveButton("ç¡®å®š", null).show();
 		}
 
 		/**
 		 * 
-		 * ÕâÀï±È½ÏÇ¿µÄÊÇÈç¹ûÒÆ³ı½çÃæ²¢ÖØĞÂÒÆ¶¯»ØÀ´»áÖØĞÂÖ´ĞĞ¸Ã·½·¨¡£
+		 * è¿™é‡Œæ¯”è¾ƒå¼ºçš„æ˜¯å¦‚æœç§»é™¤ç•Œé¢å¹¶é‡æ–°ç§»åŠ¨å›æ¥ä¼šé‡æ–°æ‰§è¡Œè¯¥æ–¹æ³•ã€‚
 		 * 
-		 * ListView ItemÉèÖÃ
+		 * ListView Itemè®¾ç½®
 		 */
 		public View getView(int position, View convertView, ViewGroup parent) {
 			Log.i("method", "getView");
 			final int selectID = position;
 
-			// ×Ô¶¨ÒåÊÓÍ¼
+			// è‡ªå®šä¹‰è§†å›¾
 			ListItemView listItemView = null;
 			if (convertView == null) {
 				listItemView = new ListItemView();
-				// »ñÈ¡list_item²¼¾ÖÎÄ¼şµÄÊÓÍ¼
+				// è·å–list_itemå¸ƒå±€æ–‡ä»¶çš„è§†å›¾
 				convertView = listContainer.inflate(R.layout.content_list_item,
 						null);
-				// »ñÈ¡¿Ø¼ş¶ÔÏó
+				// è·å–æ§ä»¶å¯¹è±¡
 				listItemView.image = (ImageView) convertView
 						.findViewById(R.id.item_image);
 				
-				//ÉèÖÃ¹Ì¶¨´óĞ¡µÄview
+				//è®¾ç½®å›ºå®šå¤§å°çš„view
 				ViewGroup.LayoutParams ps = listItemView.image.getLayoutParams();
 //		        ps.height = (int)((new ScreenUtil(context).screenWidth)*0.75);	
 				// 
-				//×¢ÒâLayoutParamsÄÚ´æÖĞ±£´æ¶¼ÊÇpixelÎªµ¥Î»µÄ³ß´ç¡£¶ø²»ÊÇdip¡£Èç¹ûĞèÒªÔò»»Ëã¡£µ±Ç°Ö÷ÒªÕ¹Ê¾·ç¸ñÊÇ¿í£ºmatch_parent¡£
-				ps.height = (int)(((new ScreenUtil(context).screenWidthPx))*(9f/16f)); //ÕâÀïÄ»³ß´çÆäÊµÓ¦¸Ã´Ómatch_parentºóµÄÊµ¼Ê³ß´ç¼ÆËã£¬µÚÒ»´ÎÕ¹Ê¾Ç°ÊÇ²»ÖªµÀ¶à´óµÄ¡£¹ÊÖ»ÓÃ½ÓÆÁÄ»´óĞ¡¼ÆËã¡£
+				//æ³¨æ„LayoutParamså†…å­˜ä¸­ä¿å­˜éƒ½æ˜¯pixelä¸ºå•ä½çš„å°ºå¯¸ã€‚è€Œä¸æ˜¯dipã€‚å¦‚æœéœ€è¦åˆ™æ¢ç®—ã€‚å½“å‰ä¸»è¦å±•ç¤ºé£æ ¼æ˜¯å®½ï¼šmatch_parentã€‚
+				ps.height = (int)(((new ScreenUtil(context).screenWidthPx))*(9f/16f)); //è¿™é‡Œå¹•å°ºå¯¸å…¶å®åº”è¯¥ä»match_parentåçš„å®é™…å°ºå¯¸è®¡ç®—ï¼Œç¬¬ä¸€æ¬¡å±•ç¤ºå‰æ˜¯ä¸çŸ¥é“å¤šå¤§çš„ã€‚æ•…åªç”¨æ¥å±å¹•å¤§å°è®¡ç®—ã€‚
 		        listItemView.image.setLayoutParams(ps);
 		        listItemView.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
 		        
-		        //ÕâĞ©´úÂëÈç¹ûÊÇfill_parentÕâÑùµÄÉèÖÃĞèÒªµÈµÚÒ»´ÎÕ¹Ê¾ºó²ÅÄÜ»ñÈ¡£¬Õ¹Ê¾Ç°Ò»Ö±Î´0µÄ¡£
+		        //è¿™äº›ä»£ç å¦‚æœæ˜¯fill_parentè¿™æ ·çš„è®¾ç½®éœ€è¦ç­‰ç¬¬ä¸€æ¬¡å±•ç¤ºåæ‰èƒ½è·å–ï¼Œå±•ç¤ºå‰ä¸€ç›´æœª0çš„ã€‚
 //		        int mw=listItemView.image.getWidth();
 //				System.out.println("mw:"+mw);
 		        
@@ -444,19 +371,19 @@ public class ContentList extends Activity {
 				// listItemView.check =
 				// (CheckBox)convertView.findViewById(R.id.checkItem);
 
-				// ÉèÖÃ¿Ø¼ş¼¯µ½convertView ??
+				// è®¾ç½®æ§ä»¶é›†åˆ°convertView ??
 				convertView.setTag(listItemView);
 			} else {
 				listItemView = (ListItemView) convertView.getTag();
 			}
 
 			// Log.e("image", (String) listItems.get(position).get("title"));
-			// //²âÊÔ
+			// //æµ‹è¯•
 			// Log.e("image", (String) listItems.get(position).get("info"));
 
 			//
 			// listItemView.imageUrlStr=(String)listItems.get(position).get("imageUrlStr");
-			// ÉèÖÃÍ¼Æ¬
+			// è®¾ç½®å›¾ç‰‡
 			// Integer imageResId=(Integer)
 			// listItems.get(position).get("imageResId");
 			// Drawable imageDrawable=(Drawable)
@@ -476,53 +403,53 @@ public class ContentList extends Activity {
 			// listItemView.image.setImageURI(imageUri);
 			// }
 
-			// Òì²½¼ÓÔØÍ¼Æ¬
+			// å¼‚æ­¥åŠ è½½å›¾ç‰‡
 			String imgUrlStr = (String) listItems.get(position).get(
 					"imageUrlStr");
 			if (imgUrlStr != null) {
 				//
-				// ³¢ÊÔ´Ó»º´æ»ñÈ¡£¬Èç¹ûÃ»ÓĞÔòÒì²½¼ÓÔØÍ¼Æ¬
+				// å°è¯•ä»ç¼“å­˜è·å–ï¼Œå¦‚æœæ²¡æœ‰åˆ™å¼‚æ­¥åŠ è½½å›¾ç‰‡
 				Drawable cachedImage = imageLoader.loadDrawable(imgUrlStr,
 						listItemView.image, new ImageCallback() {
 							public void imageLoaded(Drawable imageDrawable,
 									ImageView imageView, String imageUrl) {
 								if (imageDrawable == null || imageView == null)
-									return; // Èç¹û¶ÁÈ¡Ê§°ÜÔòÖ±½Ó·µ»Ø¡£
+									return; // å¦‚æœè¯»å–å¤±è´¥åˆ™ç›´æ¥è¿”å›ã€‚
 //								Drawable imgforView = imageDrawable;
 								imageView.setImageDrawable(imageDrawable);
 
 							}
 						});
-				// »º´æÓĞÔòÖ±½ÓÉèÖÃÍ¼Æ¬
+				// ç¼“å­˜æœ‰åˆ™ç›´æ¥è®¾ç½®å›¾ç‰‡
 				if (cachedImage != null) {
 					listItemView.image.setImageDrawable(cachedImage);
 				}
 			}
 
-			// ÉèÖÃÎÄ×Ö
+			// è®¾ç½®æ–‡å­—
 			listItemView.title.setText((String) listItems.get(position).get(
 					"title"));
 			listItemView.info.setText((String) listItems.get(position).get(
 					"info"));
 
-			// listItemView.detail.setText("ÉÌÆ·ÏêÇé");
-			// ×¢²á°´Å¥µã»÷Ê±¼ä°®Äã
+			// listItemView.detail.setText("å•†å“è¯¦æƒ…");
+			// æ³¨å†ŒæŒ‰é’®ç‚¹å‡»æ—¶é—´çˆ±ä½ 
 			// listItemView.detail.setOnClickListener(new View.OnClickListener()
 			// {
 			// @Override
 			// public void onClick(View v) {
-			// //ÏÔÊ¾ÎïÆ·ÏêÇé
+			// //æ˜¾ç¤ºç‰©å“è¯¦æƒ…
 			// showDetailInfo(selectID);
 			// }
 			// });
-			// ×¢²á¶àÑ¡¿ò×´Ì¬ÊÂ¼ş´¦Àí
+			// æ³¨å†Œå¤šé€‰æ¡†çŠ¶æ€äº‹ä»¶å¤„ç†
 			// listItemView.check
 			// .setOnCheckedChangeListener(new
 			// CheckBox.OnCheckedChangeListener() {
 			// @Override
 			// public void onCheckedChanged(CompoundButton buttonView,
 			// boolean isChecked) {
-			// //¼ÇÂ¼ÎïÆ·Ñ¡ÖĞ×´Ì¬
+			// //è®°å½•ç‰©å“é€‰ä¸­çŠ¶æ€
 			// checkedChange(selectID);
 			// }
 			// });
@@ -530,11 +457,11 @@ public class ContentList extends Activity {
 			return convertView;
 		}
 
-		// Òì²½¼ÓÔØÍ¼Æ¬µÄÏß³Ì
+		// å¼‚æ­¥åŠ è½½å›¾ç‰‡çš„çº¿ç¨‹
 		private AsyncImageLoader imageLoader;
-		// µ±Ç°µÄ»º´æ
+		// å½“å‰çš„ç¼“å­˜
 		private Map<Integer, View> viewMap = new HashMap<Integer, View>();
-
+		
 	}
 
 	// @Override
@@ -544,91 +471,5 @@ public class ContentList extends Activity {
 	// return true;
 	// }
 
-	/**
-	 * 
-	 * ´ø»º´æµÄÒì²½¼ÓÔØÍ¼Æ¬¹¤¾ßÀà¡£
-	 * 
-	 * TODO Ö®ºó¿¼ÂÇ³Ö¾Ã»¯¡£ TODO Ò»¸öÍ¼Æ¬¾ÍÒ»¸öÕâ¸öĞèÒªÓÅ»¯¡£ Ò»²¿¶ÁÈ¡Í¼Æ¬Ïß³Ì¡£
-	 * 
-	 * @author wfeng007
-	 * @date 2013-11-10 ÏÂÎç7:22:14
-	 */
-	public static class AsyncImageLoader {
-
-		// SoftReferenceÊÇÈíÒıÓÃ£¬ÊÇÎªÁË¸üºÃµÄÎªÁËÏµÍ³»ØÊÕ±äÁ¿
-		private static HashMap<String, SoftReference<Drawable>> imageCache;
-		private Context context;
-		static {
-			imageCache = new HashMap<String, SoftReference<Drawable>>();
-		}
-
-		public AsyncImageLoader(Context context) {
-			this.context = context;
-		}
-
-		public Drawable loadDrawable(final String imageUrl,
-				final ImageView imageView, final ImageCallback imageCallback) {
-			if (imageCache.containsKey(imageUrl)) {
-				// ´Ó»º´æÖĞ»ñÈ¡
-				SoftReference<Drawable> softReference = imageCache
-						.get(imageUrl);
-				Drawable drawable = softReference.get();
-				if (drawable != null) {
-					return drawable;
-				}
-			}
-			final Handler handler = new Handler() {
-				public void handleMessage(Message message) {
-					imageCallback.imageLoaded((Drawable) message.obj,
-							imageView, imageUrl);
-				}
-			};
-
-			// FIXME ÕâÖÖÒ»¸öÏß³Ì¶ÁÈ¡Ò»¸öÍ¼Æ¬µÄ·½Ê½ÏÂ£¬Èç¹ûÓÃ»§ÍøÂç²»ºÃÍ»È»¶ÏÏß¡£»áµ¼ÖÂÃ¿¸öÍ¼Æ¬¶ÁÈ¡¶¼»á±¨¸æÍøÂçÊ§°Ü¡£
-			// FIXME Ó¦¸Ã¿¼ÂÇ³öÏÖÍøÂçÁ¬Í¨ÎÊÌâÊ±Ö±½ÓÈ¡ÏûËùÓĞ±¾´Î·ÃÎÊÍøÂçµÄ²Ù×÷¡£Ó¦ÒªÇóÓÃ»§ÖØĞÂ´¥·¢¶ÁÈ¡Êı¾İ¡£
-			// TODO ¿¼ÂÇÊ¹ÓÃÏß³Ì³Ø¶ø²»ÊÇ
-			// ½¨Á¢ĞÂÒ»¸öĞÂµÄÏß³ÌÏÂÔØÍ¼Æ¬
-			new Thread() {
-				@Override
-				public void run() {
-					Drawable drawable = null;
-					try {
-						URL thumb_u = new URL(imageUrl);
-						Drawable thumb_d = Drawable.createFromStream(
-								thumb_u.openStream(), "src"); // FIXME // ÕâÑùÊÇ·ñÓĞÄÚ´æĞ¹Â¶£¿
-																
-						
-						// = ImageUtil.geRoundDrawableFromUrl(imageUrl, 20);
-//						Drawable imageDrawable = thumb_d;
-//						// Ëõ·Å Ó¦¸ÃÔÚ¶ÁÈ¡Ê±½øĞĞ¡£
-//						ScreenUtil su = new ScreenUtil(context);
-//						int width = imageDrawable.getIntrinsicWidth();
-//						int height = imageDrawable.getIntrinsicHeight();
-//						System.out.println("imageDrawable h:" + height);
-//						int dstW = su.screenWidth;
-//						int dstH = su.culcDstHight(width, height, dstW);
-//						Drawable imgforView = su.zoomDrawable(imageDrawable,
-//								dstW, dstH);
-						//
-						drawable = thumb_d;
-//						drawable = imgforView;
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-					imageCache.put(imageUrl, new SoftReference<Drawable>(
-							drawable));
-					Message message = handler.obtainMessage(0, drawable);
-					handler.sendMessage(message);
-				}
-			}.start();
-			return null;
-		}
-
-		// »Øµ÷½Ó¿Ú
-		public interface ImageCallback {
-			public void imageLoaded(Drawable imageDrawable,
-					ImageView imageView, String imageUrl);
-		}
-	}
 
 }

@@ -4,7 +4,7 @@
     android:layout_width="fill_parent"  
     android:layout_height="300dp">
     
-    <!-- 商品信息 -->  
+    <!-- 列表项信息 -->  
     <LinearLayout android:orientation="vertical"  
         android:layout_width="wrap_content"    
         android:layout_height="wrap_content">  
@@ -30,7 +30,7 @@
         android:padding="5dp"
         android:layout_margin="5dp"/>  
     
-    <!-- 购买和商品详情 
+    <!-- 详情 
     <LinearLayout android:gravity="right"  
     android:orientation="horizontal" android:layout_width="fill_parent"  
     android:layout_height="wrap_content">  
